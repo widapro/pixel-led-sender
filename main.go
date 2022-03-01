@@ -22,14 +22,15 @@ type MainWeather struct {
 
 // ENV VARIABLES
 // var NAME = getEnv("VARIABLE NAME", "DEFAULT VALUE")
-var broker = getEnv("MQTT_ADDRESS", "nil")                // Address of MQTT Server
-var port = getEnv("MQTT_PORT", "1883")                    // MQTT port
-var mqttUser = getEnv("MQTT_USER", "username")            // MQTT user
-var mqttPassword = getEnv("MQTT_PASSWORD", "change_me")   // MQTT user password
-var weatherToken = getEnv("WEATHER_TOKEN", "change_me")   // API token from openweathermap.org
-var weatherId = getEnv("WEATHER_CITY_ID", "4459467")      // City ID from openweathermap.org; All existing ID's can be found here: http://bulk.openweathermap.org/sample/city.list.json.gz
-var mqttTopic1 = getEnv("MQTT_TOPIC1", "wled/zone0_text") // MQTT topic to send temperature
-var mqttTopic2 = getEnv("MQTT_TOPIC2", "wled/zone1_text") // MQTT topic to send time
+var broker = getEnv("MQTT_ADDRESS", "nil")                              // Address of MQTT Server
+var port = getEnv("MQTT_PORT", "1883")                                  // MQTT port
+var mqttUser = getEnv("MQTT_USER", "username")                          // MQTT user
+var mqttPassword = getEnv("MQTT_PASSWORD", "change_me")                 // MQTT user password
+var weatherToken = getEnv("WEATHER_TOKEN", "change_me")                 // API token from openweathermap.org
+var weatherId = getEnv("WEATHER_CITY_ID", "4459467")                    // City ID from openweathermap.org; All existing ID's can be found here: http://bulk.openweathermap.org/sample/city.list.json.gz
+var mqttTopic1 = getEnv("MQTT_TOPIC1", "wled/zone0_text")               // MQTT topic to send temperature
+var mqttTopic2 = getEnv("MQTT_TOPIC2", "wled/zone1_text")               // MQTT topic to send time
+var refreshTime, err = time.ParseDuration(getEnv("REFRESH_TIME", "5s")) // Refresh temperature time in seconds
 
 // MQTT variables
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
@@ -81,7 +82,7 @@ func postTemp(client mqtt.Client, tempSleepTimer time.Duration) {
 		if err != nil {
 			fmt.Println(err)
 			fmt.Println("sleeping for the next iteration")
-			time.Sleep(tempSleepTimer * time.Second)
+			time.Sleep(tempSleepTimer)
 			continue
 		}
 
@@ -90,12 +91,12 @@ func postTemp(client mqtt.Client, tempSleepTimer time.Duration) {
 
 		for i := 0; i < 6; i++ {
 			fmt.Println("MQTT post Celcium: ", tempCelciumString)
-			publish(client, tempCelciumString, mqttTopic1)
-			time.Sleep(tempSleepTimer * time.Second)
+			publish(client, tempCelciumString+" C", mqttTopic1)
+			time.Sleep(tempSleepTimer)
 
 			fmt.Println("MQTT post Fahrenheit: ", tempFahrenheitString)
-			publish(client, tempFahrenheitString, mqttTopic1)
-			time.Sleep(tempSleepTimer * time.Second)
+			publish(client, tempFahrenheitString+" F", mqttTopic1)
+			time.Sleep(tempSleepTimer)
 		}
 	}
 }
@@ -122,7 +123,8 @@ func main() {
 		panic(token.Error())
 	}
 
-	go postTemp(client, 5)
+	fmt.Println("Refresh time: ", refreshTime)
+	go postTemp(client, refreshTime)
 
 	ticker := time.NewTicker(10 * time.Second)
 	for _ = range ticker.C {

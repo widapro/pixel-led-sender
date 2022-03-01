@@ -22,4 +22,5 @@ export WEATHER_TOKEN="change_me"     # Requierd! API token from openweathermap.o
 export WEATHER_CITY_ID="4459467"     # Requierd! City ID from openweathermap.org; All existing ID's can be found here: http://bulk.openweathermap.org/sample/city.list.json.gz
 export MQTT_TOPIC1="wled/zone0_text" # Optional. MQTT topic to send temperature. Default value "wled/zone0_text"
 export MQTT_TOPIC2="wled/zone1_text" # Optional. MQTT topic to send time. Default value "wled/zone1_text"
+export REFRESH_TIME="5s"             # Optional. Temperature refresh time. Default 5 seconds.
 ```
