@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -22,15 +23,15 @@ type MainWeather struct {
 
 // ENV VARIABLES
 // var NAME = getEnv("VARIABLE NAME", "DEFAULT VALUE")
-var broker = getEnv("MQTT_ADDRESS", "nil")                              // Address of MQTT Server
-var port = getEnv("MQTT_PORT", "1883")                                  // MQTT port
-var mqttUser = getEnv("MQTT_USER", "username")                          // MQTT user
-var mqttPassword = getEnv("MQTT_PASSWORD", "change_me")                 // MQTT user password
-var weatherToken = getEnv("WEATHER_TOKEN", "change_me")                 // API token from openweathermap.org
-var weatherId = getEnv("WEATHER_CITY_ID", "4459467")                    // City ID from openweathermap.org; All existing ID's can be found here: http://bulk.openweathermap.org/sample/city.list.json.gz
-var mqttTopic1 = getEnv("MQTT_TOPIC1", "wled/zone0_text")               // MQTT topic to send temperature
-var mqttTopic2 = getEnv("MQTT_TOPIC2", "wled/zone1_text")               // MQTT topic to send time
-var refreshTime, err = time.ParseDuration(getEnv("REFRESH_TIME", "5s")) // Refresh temperature time in seconds
+var broker = getEnv("MQTT_ADDRESS", "nil")                     // Address of MQTT Server
+var port = getEnv("MQTT_PORT", "1883")                         // MQTT port
+var mqttUser = getEnv("MQTT_USER", "username")                 // MQTT user
+var mqttPassword = getEnv("MQTT_PASSWORD", "change_me")        // MQTT user password
+var weatherToken = getEnv("WEATHER_TOKEN", "change_me")        // API token from openweathermap.org
+var weatherId = getEnv("WEATHER_CITY_ID", "4459467")           // City ID from openweathermap.org; All existing ID's can be found here: http://bulk.openweathermap.org/sample/city.list.json.gz
+var mqttTopic1 = getEnv("MQTT_TOPIC1", "wled/zone0_text")      // MQTT topic to send temperature
+var mqttTopic2 = getEnv("MQTT_TOPIC2", "wled/zone1_text")      // MQTT topic to send time
+var refreshTime, _ = strconv.Atoi(getEnv("REFRESH_TIME", "5")) // Refresh temperature time in seconds
 
 // MQTT variables
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
@@ -76,27 +77,31 @@ func GetTempJson() (float64, float64, error) {
 	return tempCelcium, tempFahrenheit, nil
 }
 
-func postTemp(client mqtt.Client, tempSleepTimer time.Duration) {
+func postTemp(client mqtt.Client, tempSleepTimer int) {
 	for {
+		refreshCountNumber := 60 / (tempSleepTimer * 2)
+		refreshTimeSleep := time.Duration(refreshCountNumber) * time.Second
+		fmt.Print(time.Duration(refreshCountNumber))
+
 		tempCelcium, tempFahrenheit, err := GetTempJson()
 		if err != nil {
 			fmt.Println(err)
 			fmt.Println("sleeping for the next iteration")
-			time.Sleep(tempSleepTimer)
+			time.Sleep(refreshTimeSleep)
 			continue
 		}
 
 		tempCelciumString := fmt.Sprintf("%g", tempCelcium)
 		tempFahrenheitString := fmt.Sprintf("%.0f", tempFahrenheit)
 
-		for i := 0; i < 6; i++ {
+		for i := 0; i < refreshCountNumber; i++ {
 			fmt.Println("MQTT post Celcium: ", tempCelciumString)
 			publish(client, tempCelciumString+" C", mqttTopic1)
-			time.Sleep(tempSleepTimer)
+			time.Sleep(refreshTimeSleep)
 
 			fmt.Println("MQTT post Fahrenheit: ", tempFahrenheitString)
 			publish(client, tempFahrenheitString+" F", mqttTopic1)
-			time.Sleep(tempSleepTimer)
+			time.Sleep(refreshTimeSleep)
 		}
 	}
 }
@@ -126,7 +131,11 @@ func main() {
 	fmt.Println("Refresh time: ", refreshTime)
 	go postTemp(client, refreshTime)
 
-	ticker := time.NewTicker(10 * time.Second)
+	timeCurrent := time.Now().Format("15:04")
+	publish(client, timeCurrent, mqttTopic2)
+	fmt.Println("Current time published at ", timeCurrent)
+
+	ticker := time.NewTicker(60 * time.Second)
 	for _ = range ticker.C {
 		timeCurrent := time.Now().Format("15:04")
 		publish(client, timeCurrent, mqttTopic2)
