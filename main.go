@@ -80,7 +80,7 @@ func GetTempJson() (float64, float64, error) {
 func postTemp(client mqtt.Client, tempSleepTimer int) {
 	for {
 		refreshCountNumber := 60 / (tempSleepTimer * 2)
-		refreshTimeSleep := time.Duration(refreshCountNumber) * time.Second
+		refreshTimeSleep := time.Duration(tempSleepTimer) * time.Second
 		fmt.Print(time.Duration(refreshCountNumber))
 
 		tempCelcium, tempFahrenheit, err := GetTempJson()
